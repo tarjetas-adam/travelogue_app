@@ -15,7 +15,23 @@ A private travel journal where every trip is a magazine issue. Opens on your pho
 - iPhone: open the link in Safari, tap Share, then Add to Home Screen.
 - Android: open the link in Chrome, tap the menu, then Install app.
 
+## Adding notes you already took
+
+Open a new, empty issue and tap Paste your notes (or Edit, then + Add memory). Paste the whole list. Lines such as Day 1, Day 2: Lluc or Nap 3 are picked up as the days, and each numbered line or each line of text becomes a note.
+
+## Sharing a trip with a friend
+
+- Open the trip and tap Share. Choose whether your friend may edit their copy, then send the file with any app.
+- Your friend opens Travelogue, taps Import a shared trip under the shelf, and picks the file. If it arrives in WhatsApp or Messages, they save it to Files first.
+- The friend gets their own copy. Share the trip again to send them an update.
+
+## If you cannot add it to your phone's home screen
+
+- Open the address directly in Safari (iPhone) or Chrome (Android). A link opened inside WhatsApp, Mail, GitHub or Claude uses an in-app browser that has no Add to Home Screen.
+- iPhone: tap the Share button, scroll down the list and tap Add to Home Screen. If it is missing, scroll to the bottom of the share sheet, tap Edit Actions and add it.
+- Android: tap the menu with the three dots, then Install app or Add to Home screen.
+
 ## Good to know
 
 - Everything you add is stored on that phone only. A different phone or browser starts empty.
-- To publish an update, replace `index.html` and change `VERSION` in `sw.js` (for example to `travelogue-v2`).
+- To publish an update, replace `index.html` and `sw.js`. If you edit `sw.js` yourself, raise `VERSION` by one (for example to `travelogue-v9`).
