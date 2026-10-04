@@ -270,7 +270,6 @@ section:first-of-type>.day{margin-top:4cqw}
 .tright{display:flex;gap:20px;align-items:center}
 .ntext{display:block;width:100%;min-height:24vh;border:1px solid var(--ink);padding:10px;font:400 15px/1.5 var(--serif);background:transparent;color:var(--ink);resize:none;margin-bottom:12px}
 .scr{flex-direction:column;align-items:center;padding-top:2cqw}
-#importLink{color:var(--ink2);padding:6px 0}
 .emptybox{margin:8cqw 0}
 .emptybox .empty{margin:0 0 5cqw}
 .emptybox .btn{margin-right:14px}
@@ -294,7 +293,7 @@ section:first-of-type>.day{margin-top:4cqw}
       <div class="rule"></div>
     </div>
     <div id="shelf"></div>
-    <div class="scr" id="scr"><span id="scrTxt"></span><button class="lnk" id="importLink" type="button">Import a shared trip</button></div>
+    <div class="scr" id="scr"><span id="scrTxt"></span></div>
   </main>
   <section class="trip" id="trip" aria-live="polite"></section>
   <div class="win" id="win" hidden role="search">
@@ -562,7 +561,7 @@ function sizeShelf(){
   var appW=appEl.clientWidth, gap=0.026*appW, nShow=Math.min(ROWS,shelfMetric.rows);
   var slotNat=shelfMetric.maxH*shelfMetric.k/100*W;
   var padB=parseFloat(getComputedStyle(homeEl).paddingBottom)||0;
-  var avail=homeEl.clientHeight-shelfEl.offsetTop-padB-0.11*appW;
+  var avail=homeEl.clientHeight-shelfEl.offsetTop-padB-0.075*appW;
   var f=1;
   if(avail>0&&slotNat>0) f=Math.max(.45,Math.min(1,(avail/nShow-gap)/slotNat));
   shelfEl.style.setProperty('--f',f.toFixed(4));
@@ -1107,7 +1106,6 @@ function handleImportResult(r){
   if(WZ) closeWizard();
   renderShelf(); shelfEl.scrollTop=0; toast(r.msg);
 }
-$('#importLink').addEventListener('click',function(){ $('#impFile').click(); });
 $('#impFile').addEventListener('change',function(e){
   var f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return;
   var fr=new FileReader();
@@ -1388,7 +1386,7 @@ function renderWizard(){
     h+='<input type="file" id="cFile" accept="image/*" hidden>';
   }
   h+='<p class="werr" id="wErr" hidden></p>';
-  if(s===0) foot='<span></span><button class="btn pri" data-act="next" type="button">Next</button>';
+  if(s===0) foot='<button class="btn plain" data-act="importtrip" type="button">Import a shared trip</button><button class="btn pri" data-act="next" type="button">Next</button>';
   else if(s<=3||s===5) foot='<button class="btn plain" data-act="skip" type="button">Skip</button><button class="btn pri" data-act="next" type="button">Next</button>';
   else if(s===4) foot=(chosen?'<button class="btn" data-act="changeref" type="button">Choose another</button>':'<span></span>')+'<button class="btn pri" data-act="next" type="button">Next</button>';
   else if(s===6) foot='<span></span><button class="btn pri" data-act="next" type="button">I have the cover</button>';
@@ -1456,6 +1454,7 @@ wizEl.addEventListener('click',function(e){
   else if(act==='back'){ if(WZ.sub){WZ.sub=null;renderWizard();} else if(WZ.idx>0){WZ.idx--;WZ.anim=true;renderWizard();} }
   else if(act==='next') wizNext(false);
   else if(act==='skip') wizNext(true);
+  else if(act==='importtrip'){var iff=$('#impFile'); if(iff) iff.click();}
   else if(act==='yprev'){WZ.dateY--;syncDate();renderWizard();}
   else if(act==='ynext'){WZ.dateY++;syncDate();renderWizard();}
   else if(act==='changeref'){WZ.pickOpen=true;renderWizard();}
