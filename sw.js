@@ -1,4 +1,4 @@
-const VERSION = 'travelogue-v10';
+const VERSION = 'travelogue-v12';
 const ASSETS = [
   "./",
   "index.html",

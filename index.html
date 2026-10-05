@@ -275,9 +275,11 @@ section:first-of-type>.day{margin-top:4cqw}
 .emptybox .empty{margin:0 0 5cqw}
 .emptybox .btn{margin-right:14px}
 .emptybox .lnk{vertical-align:middle}
-.tile{text-align:left}
-.cap{display:block;margin-top:3px;font:500 10px/12px var(--sans);color:var(--ink2);white-space:nowrap;overflow:hidden;text-align:left}
+.tile{text-align:center}
+.cap{display:block;margin-top:3px;font:500 10px/12px var(--sans);color:var(--ink2);white-space:nowrap;overflow:hidden;text-align:center}
 .pbtns{display:flex;flex-direction:column;gap:14px;align-items:flex-start}
+.shd{margin:8cqw 0 3cqw;font:700 18px/1.2 var(--display)}
+.frow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--faint);font:400 17px/1.3 var(--serif)}
 @media (prefers-reduced-motion:reduce){.intro *,.seq *{animation:none!important}}
 @media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
 </style>
@@ -290,6 +292,7 @@ section:first-of-type>.day{margin-top:4cqw}
         <h1 class="brand">Travelogue</h1>
         <div class="icons">
           <button class="ico" id="btnSearch" aria-label="Search issues"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></button>
+          <button class="ico" id="btnSync" aria-label="Storage"><svg viewBox="0 0 24 24"><path d="M7.5 18a4.5 4.5 0 0 1-.4-8.98A6 6 0 0 1 18.4 10 4 4 0 0 1 18 18H7.5z"/></svg></button>
           <button class="ico" id="btnNew" aria-label="New issue"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
         </div>
       </div>
@@ -545,7 +548,7 @@ function sortedTrips(){
   });
 }
 function capText(t){
-  var p=String(t.location||'').trim(), m=/^(\d{4})-(\d{2})/.exec(String(t.date||'')), ds=m?(m[2]+'/'+m[1].slice(2)):'';
+  var p=String(t.location||'').split(',')[0].trim(), m=/^(\d{4})-(\d{2})/.exec(String(t.date||'')), ds=m?(m[2]+'/'+m[1].slice(2)):'';
   return p+(p&&ds?' ':'')+ds;
 }
 function fitCaptions(){
@@ -662,6 +665,7 @@ document.addEventListener('click',function(e){
 });
 $('#q').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();$('#q').blur();}});
 $('#btnNew').addEventListener('click',function(){openWizard();});
+$('#btnSync').addEventListener('click',function(){ if(!busy){ closeSearch(); syncSheet(); } });
 
 /* ---------- trip view ---------- */
 var pagerEl,panelD,panelP,tabNow=0,syncCur=0,syncGesture=false,syncTimer;
@@ -787,7 +791,7 @@ function renderTrip(t){
     if(f){var p=current.photos.filter(function(x){return x.id===f.dataset.id;})[0]; if(p) photoSheet(current,p);}
   });
 }
-function save(t){return DB.put(t);}
+function save(t){ t.u=Date.now(); scheduleSync(); return DB.put(t); }
 
 async function addPhotos(files){
   var t=current, fallback=panelDay(panelP);
@@ -1083,9 +1087,9 @@ function shareSheet(t){
   });
 }
 function removeSharedSheet(t){
-  var sh=openSheet('Remove trip','<p class="npreview" style="margin-top:0">Remove \u201c'+esc(tripName(t))+'\u201d from your shelf? Your friend can send it again any time.</p>','Remove');
+  var sh=openSheet('Remove trip','<p class="npreview" style="margin-top:0">Remove \u201c'+esc(tripName(t))+'\u201d from your shelf? '+(t.remote?'It will not come back on its own.':'Your friend can send it again any time.')+'</p>','Remove');
   sh.saveBtn.addEventListener('click',async function(){
-    trips=trips.filter(function(x){return x.id!==t.id;}); await DB.del(t.id);
+    onTripRemoved(t); trips=trips.filter(function(x){return x.id!==t.id;}); await DB.del(t.id);
     sh.close(); tripEl.style.display='none'; tripEl.innerHTML=''; current=null;
     homeEl.classList.remove('dim'); renderShelf();
   });
@@ -1160,8 +1164,9 @@ function tripSheet(t){
   var sh=openSheet(isNew?'New issue':'Edit issue',
     '<label class="fld"><span>Title<i>optional</i></span><input type="text" id="tTitle" placeholder="GR221 Putzfrauen Insel" autocomplete="off"></label>'+
     '<label class="fld"><span>Tagline<i>for the cover</i></span><input type="text" id="tTag" placeholder="Hikes, bus rides, refugios" autocomplete="off"></label>'+
-    '<label class="fld"><span>Place<i>up to 12 characters</i></span><input type="text" id="tLoc" maxlength="12" placeholder="Mallorca" autocomplete="off"></label>'+
+    '<label class="fld"><span>Place<i>one place, up to 12 characters</i></span><input type="text" id="tLoc" maxlength="12" placeholder="Mallorca" autocomplete="off"></label>'+
     '<label class="fld"><span>Month and year</span><input type="month" id="tDate" placeholder="2026-10"></label>'+
+    (!isNew&&SYNC.mine&&isOwn(t)?'<label class="fld"><span>Friends</span><select id="tShare"><option value="private">Cannot see it</option><option value="view">Can view it</option><option value="edit">Can edit it</option></select></label>':'')+
     '<p class="err" id="tErr" hidden></p>'+
     '<div class="fld"><span>Cover</span><div class="pvwrap"><div id="pv"></div><div class="pbtns"><button class="lnk" id="tPick" type="button">Upload cover</button>'+(isNew?'':'<button class="lnk" id="tNew" type="button">Make a new cover</button>')+'</div></div><input type="file" id="tFile" accept="image/*" hidden></div>'+
     '<label class="fld"><span>Format</span><select id="tPre">'+presetOpts+'</select></label>'+
@@ -1172,6 +1177,7 @@ function tripSheet(t){
   f.title.value=t?t.title:''; f.tag.value=t?t.tagline:''; f.loc.value=t?t.location:'';
   f.date.value=t&&t.date?String(t.date).slice(0,7):'';
   f.w.value=t?t.w:225; f.h.value=t?t.h:300;
+  if($('#tShare',el)) $('#tShare',el).value=t.sharing||'private';
   function preview(){
     var w=+f.w.value||225,h=+f.h.value||300;
     var tmp={id:t?t.id:'new',title:f.title.value,location:f.loc.value,w:w,h:h,cover:coverData};
@@ -1203,12 +1209,13 @@ function tripSheet(t){
       var nt={id:uid(),order:minOrd-1,title:title,tagline:f.tag.value.trim(),location:f.loc.value.trim(),date:f.date.value||'',cover:coverData,w:w,h:h,memories:[],photos:[]};
       trips.push(nt); await save(nt); renderShelf(); shelfEl.scrollTop=0; sh.close(); toast('Issue added to your shelf');
     }else{
-      t.title=title; t.tagline=f.tag.value.trim(); t.location=f.loc.value.trim(); t.date=f.date.value||(t.date||''); t.cover=coverData; t.w=w; t.h=h;
+      t.title=title; t.tagline=f.tag.value.trim(); t.location=f.loc.value.trim(); t.date=f.date.value||(t.date||''); if(coverData!==t.cover) t.coverFile=null; t.cover=coverData; t.w=w; t.h=h;
+      if($('#tShare',el)) t.sharing=$('#tShare',el).value;
       await save(t); fillPanels(t); refreshTripHead(t); renderShelf(); sh.close();
     }
   });
   if(!isNew) confirmTap($('#tDel',el),'Tap again to delete',async function(){
-    trips=trips.filter(function(x){return x.id!==t.id;}); await DB.del(t.id);
+    onTripRemoved(t); trips=trips.filter(function(x){return x.id!==t.id;}); await DB.del(t.id);
     sh.close(); tripEl.style.display='none'; tripEl.innerHTML=''; current=null;
     homeEl.classList.remove('dim'); renderShelf();
   });
@@ -1363,7 +1370,7 @@ function renderWizard(){
   }else if(s===1){
     h=wHead('Tagline','A short line for the cover, like \u201cHikes, bus rides, refugios\u201d.',true)+'<input type="text" id="wIn" placeholder="Hikes, bus rides, refugios" autocomplete="off">';
   }else if(s===2){
-    h=wHead('Place','Where did it happen? Up to 12 characters, shown under the cover.',true)+'<input type="text" id="wIn" maxlength="12" placeholder="Mallorca" autocomplete="off">';
+    h=wHead('Place','One place, like Oviedo. Up to 12 characters, shown under the cover.',true)+'<input type="text" id="wIn" maxlength="12" placeholder="Mallorca" autocomplete="off">';
   }else if(s===3){
     h=wHead('Date','Which month and year?',true);
     h+='<div class="mpick"><div class="yrow"><button data-act="yprev" type="button" aria-label="Previous year">'+ARW_L+'</button><span class="yr">'+WZ.dateY+'</span><button data-act="ynext" type="button" aria-label="Next year">'+ARW_R+'</button></div><div class="mgrid">';
@@ -1444,7 +1451,7 @@ async function wizCreate(skipCover){
   if(WZ.coverOnly){
     var tr=trips.filter(function(x){return x.id===WZ.tripId;})[0];
     if(!tr){closeWizard();return;}
-    tr.cover=WZ.cover; tr.w=w; tr.h=h; await save(tr);
+    tr.cover=WZ.cover; tr.coverFile=null; tr.w=w; tr.h=h; await save(tr);
     closeWizard(); renderShelf(); toast('Cover updated'); return;
   }
   var minOrd=trips.length?Math.min.apply(null,trips.map(function(x){return x.order;})):1;
@@ -1532,6 +1539,246 @@ wizEl.addEventListener('keydown',function(e){
 });
 
 
+/* ---------- storage in your own Google Sheet and Drive ---------- */
+var SYNC={mine:null,friends:[]}, syncing=false, syncAgain=false, syncTimer=null, syncChanged=false, syncInfo={at:0,err:''}, syncRedraw=null;
+function loadSync(){
+  try{ var j=JSON.parse(localStorage.getItem('tl_sync')||'null'); if(j){ SYNC.mine=j.mine||null; SYNC.friends=Array.isArray(j.friends)?j.friends:[]; } }catch(e){}
+}
+function saveSync(){ try{ localStorage.setItem('tl_sync',JSON.stringify(SYNC)); }catch(e){} }
+function getTomb(){ try{ return JSON.parse(localStorage.getItem('tl_tomb')||'{}')||{}; }catch(e){ return {}; } }
+function setTomb(o){ try{ localStorage.setItem('tl_tomb',JSON.stringify(o)); }catch(e){} }
+loadSync();
+function isOwn(t){ return !t.remote && !(t.shared && !t.shared.canEdit); }
+function syncOn(){ return !!(SYNC.mine||SYNC.friends.length); }
+function scheduleSync(delay){
+  if(!syncOn()) return;
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(function(){ syncAll(false); },delay==null?4000:delay);
+}
+async function api(c,action,payload){
+  var res;
+  try{ res=await fetch(c.url,{method:'POST',body:JSON.stringify(Object.assign({action:action,key:c.key},payload||{}))}); }
+  catch(e){ throw new Error('Could not reach the script. Check the link and your connection.'); }
+  var j;
+  try{ j=await res.json(); }catch(e){ throw new Error('The script did not answer properly. Check the link.'); }
+  if(j&&j.error) throw new Error(j.error);
+  return j;
+}
+function dataParts(u){ var i=u.indexOf(','), m=/^data:([^;,]+)/.exec(u.slice(0,i)); return {mime:m?m[1]:'image/jpeg',data:u.slice(i+1)}; }
+async function fetchFile(c,id){ var j=await api(c,'getFile',{id:id}); return 'data:'+j.mime+';base64,'+j.data; }
+function remoteIdOf(t){ return t.remote?t.remote.id:t.id; }
+function newOrder(){ return (trips.length?Math.min.apply(null,trips.map(function(x){return x.order;})):1)-1; }
+
+async function pushTrip(c,t,say){
+  var u0=t.u||1, nm=slugName(tripName(t));
+  if(t.cover&&!t.coverFile){
+    say('Uploading cover'); var p=dataParts(t.cover);
+    t.coverFile=(await api(c,'putFile',{name:nm+'-cover.jpg',mime:p.mime,data:p.data})).file; await DB.put(t);
+  }
+  var todo=t.photos.filter(function(x){return !x.file;});
+  for(var i=0;i<todo.length;i++){
+    say('Uploading photos '+(i+1)+' of '+todo.length);
+    var q=dataParts(todo[i].src);
+    todo[i].file=(await api(c,'putFile',{name:nm+'-'+todo[i].id+'.jpg',mime:q.mime,data:q.data})).file; await DB.put(t);
+  }
+  await api(c,'putTrip',{trip:{
+    id:remoteIdOf(t),title:t.title||'',tagline:t.tagline||'',place:t.location||'',date:t.date||'',w:t.w,h:t.h,
+    cover:t.coverFile||'',updated:u0,sharing:t.sharing||'private',
+    memories:t.memories.map(function(m){return {id:m.id,day:m.day,text:m.body,sort:m.ord};}),
+    photos:t.photos.map(function(p){return {id:p.id,day:p.day,caption:p.caption||'',file:p.file,w:p.w,h:p.h,sort:p.ord};})
+  }});
+  t.su=u0; await DB.put(t);
+}
+async function pullTrip(c,srvId,localId,remoteMeta,say){
+  var r=(await api(c,'getTrip',{id:srvId})).trip;
+  var ex=trips.filter(function(x){return x.id===localId;})[0];
+  var cover=null;
+  if(r.cover){
+    if(ex&&ex.cover&&ex.coverFile===r.cover) cover=ex.cover;
+    else { say('Downloading cover'); cover=await fetchFile(c,r.cover); }
+  }
+  var oldBy={}; if(ex) ex.photos.forEach(function(p){ if(p.file) oldBy[p.file]=p; });
+  var list=r.photos.slice().sort(function(a,b){return a.sort-b.sort;});
+  var need=list.filter(function(p){return !oldBy[p.file];}).length, n=0, photos=[];
+  for(var i=0;i<list.length;i++){
+    var p=list[i], src;
+    if(oldBy[p.file]) src=oldBy[p.file].src;
+    else { n++; say('Downloading photos '+n+' of '+need); src=await fetchFile(c,p.file); }
+    photos.push({id:p.id,day:p.day,caption:p.caption,src:src,w:p.w,h:p.h,ord:p.sort,file:p.file});
+  }
+  var t=ex||{id:localId,order:newOrder()};
+  t.title=r.title; t.tagline=r.tagline; t.location=r.place; t.date=r.date; t.w=r.w; t.h=r.h;
+  t.cover=cover; t.coverFile=r.cover||null;
+  t.memories=r.memories.map(function(m){return {id:m.id,day:m.day,title:'',body:m.text,ord:m.sort};});
+  t.photos=photos; t.u=r.updated; t.su=r.updated;
+  if(remoteMeta){
+    t.remote=remoteMeta;
+    t.shared={origId:'remote:'+c.id+':'+srvId,from:c.name||'a friend',canEdit:remoteMeta.level==='edit'};
+  }else{ t.sharing=r.sharing||'private'; }
+  if(!ex) trips.push(t);
+  await DB.put(t);
+  syncChanged=true;
+  return t;
+}
+async function syncMine(c,say){
+  var res=await api(c,'list'), byId={};
+  res.trips.forEach(function(x){ byId[x.id]=x; });
+  var tomb=getTomb(), ids=Object.keys(tomb);
+  for(var k=0;k<ids.length;k++){
+    if(byId[ids[k]]&&!byId[ids[k]].deleted){ await api(c,'deleteTrip',{id:ids[k]}); byId[ids[k]].deleted=true; }
+    delete tomb[ids[k]]; setTomb(tomb);
+  }
+  var own=trips.filter(isOwn);
+  for(var i=0;i<own.length;i++){
+    var t=own[i], srv=byId[t.id], L=t.u||1, K=t.su||0;
+    if(!srv){ await pushTrip(c,t,say); continue; }
+    if(srv.deleted){
+      if(L>K) await pushTrip(c,t,say);
+      else { trips=trips.filter(function(x){return x!==t;}); await DB.del(t.id); syncChanged=true; }
+      continue;
+    }
+    var S=srv.updated||0;
+    if(S===K&&L<=K) continue;
+    if(L>K&&S<=K) await pushTrip(c,t,say);
+    else if(S>K&&L<=K) await pullTrip(c,t.id,t.id,null,say);
+    else if(L>=S) await pushTrip(c,t,say);
+    else await pullTrip(c,t.id,t.id,null,say);
+  }
+  for(var j=0;j<res.trips.length;j++){
+    var s2=res.trips[j];
+    if(s2.deleted||tomb[s2.id]) continue;
+    if(!trips.some(function(x){return x.id===s2.id;})) await pullTrip(c,s2.id,s2.id,null,say);
+  }
+}
+async function syncFriend(c,say){
+  var res=await api(c,'list'), ignore=c.ignore||[], seen={};
+  for(var i=0;i<res.trips.length;i++){
+    var srv=res.trips[i];
+    if(srv.deleted||ignore.indexOf(srv.id)>-1) continue;
+    seen[srv.id]=true;
+    var local=trips.filter(function(x){return x.remote&&x.remote.conn===c.id&&x.remote.id===srv.id;})[0];
+    var meta={conn:c.id,id:srv.id,level:srv.sharing};
+    if(!local){ await pullTrip(c,srv.id,'r_'+c.id+'_'+srv.id,meta,say); continue; }
+    if(local.remote.level!==srv.sharing){ local.remote.level=srv.sharing; local.shared.canEdit=srv.sharing==='edit'; await DB.put(local); syncChanged=true; }
+    var L=local.u||1, K=local.su||0, S=srv.updated||0;
+    if(srv.sharing==='edit'&&L>K&&S<=K) await pushTrip(c,local,say);
+    else if(S>K) await pullTrip(c,srv.id,local.id,meta,say);
+  }
+  var gone=trips.filter(function(x){ return x.remote&&x.remote.conn===c.id&&!seen[x.remote.id]; });
+  for(var g=0;g<gone.length;g++){ trips=trips.filter(function(x){return x!==gone[g];}); await DB.del(gone[g].id); syncChanged=true; }
+}
+function afterSync(){
+  if(syncChanged){
+    syncChanged=false;
+    try{ renderShelf(); }catch(e){}
+    try{
+      if(current&&trips.indexOf(current)<0){ tripEl.style.display='none'; tripEl.innerHTML=''; current=null; homeEl.classList.remove('dim'); renderShelf(); }
+      else if(current&&tripEl.style.display==='flex'&&panelD&&!busy){ refreshPanels(); refreshTripHead(current); }
+    }catch(e){}
+  }
+  if(syncRedraw){ try{ syncRedraw(); }catch(e){} }
+}
+async function syncAll(manual){
+  if(!syncOn()) return;
+  if(syncing){ syncAgain=true; return; }
+  syncing=true; syncInfo.err=''; if(syncRedraw){ try{syncRedraw();}catch(e){} }
+  var say=function(m){ toast(m); };
+  try{
+    if(SYNC.mine){ try{ await syncMine(SYNC.mine,say); }catch(e){ syncInfo.err='My shelf: '+(e.message||e); } }
+    for(var i=0;i<SYNC.friends.length;i++){
+      try{ await syncFriend(SYNC.friends[i],say); }catch(e){ syncInfo.err=(SYNC.friends[i].name||'A friend')+': '+(e.message||e); }
+    }
+    if(!syncInfo.err) syncInfo.at=Date.now();
+  }finally{ syncing=false; afterSync(); }
+  if(manual&&syncInfo.err) toast(syncInfo.err);
+  else if(manual) toast('Synced');
+  if(syncAgain){ syncAgain=false; scheduleSync(1500); }
+}
+function onTripRemoved(t){
+  if(t.remote){
+    var c=SYNC.friends.filter(function(f){return f.id===t.remote.conn;})[0];
+    if(c){ c.ignore=c.ignore||[]; if(c.ignore.indexOf(t.remote.id)<0) c.ignore.push(t.remote.id); saveSync(); }
+  }else if(SYNC.mine&&isOwn(t)&&t.su){
+    var tomb=getTomb(); tomb[t.id]=Date.now(); setTomb(tomb); scheduleSync(1500);
+  }
+}
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible'&&syncOn()&&Date.now()-syncInfo.at>30000) scheduleSync(800);
+});
+
+function syncSheet(){
+  var sh=openSheet('Storage','<div id="syncBody"></div>','Done');
+  var body=$('#syncBody',sh.el), armed='';
+  function stop(){ syncRedraw=null; }
+  sh.saveBtn.addEventListener('click',function(){ stop(); sh.close(); });
+  $('[data-x]',sh.el).addEventListener('click',stop);
+  function when(ts){ var d=new Date(ts); return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+  function status(){ return syncing?'Syncing\u2026':(syncInfo.err?'Not synced. '+syncInfo.err:(syncInfo.at?'Last synced at '+when(syncInfo.at)+'.':'Not synced yet.')); }
+  var keep=['sUrl','sKey','fName','fUrl','fKey'];
+  function draw(){
+    var saved={}; keep.forEach(function(id){ var e=$('#'+id,body); if(e) saved[id]=e.value; });
+    var h='<p class="npreview" style="margin-top:0">Keep your trips in your own Google Sheet and Drive, and share them with friends. The setup steps are in the README.</p>';
+    h+='<h3 class="shd">My shelf</h3>';
+    if(SYNC.mine){
+      h+='<p class="npreview" style="margin-top:0">Connected. '+esc(status())+'</p><div class="pact"><button class="btn" data-sa="sync" type="button">Sync now</button><button class="btn plain" data-sa="disc" type="button">'+(armed==='disc'?'Tap again to disconnect':'Disconnect')+'</button></div>';
+      h+='<h3 class="shd">Invite a friend</h3><p class="npreview" style="margin-top:0">Friends only see the trips you share. Choose that for each trip under Issue details.</p><button class="btn" data-sa="invite" type="button">Copy invite</button>';
+    }else{
+      h+='<label class="fld"><span>Script link</span><input type="text" id="sUrl" placeholder="https://script.google.com/macros/s/\u2026/exec" autocomplete="off"></label>';
+      h+='<label class="fld"><span>Your key</span><input type="text" id="sKey" autocomplete="off"></label><button class="btn pri" data-sa="connect" type="button">Connect</button><p class="err" id="sErr" hidden></p>';
+    }
+    h+='<h3 class="shd">Friends\u2019 shelves</h3>';
+    SYNC.friends.forEach(function(f){
+      h+='<div class="frow"><span>'+esc(f.name||'Friend')+'</span><button class="lnk" data-sa="rmf" data-id="'+esc(f.id)+'" type="button">'+(armed===f.id?'Tap again to remove':'Remove')+'</button></div>';
+    });
+    h+='<label class="fld"><span>Name<i>optional</i></span><input type="text" id="fName" placeholder="Anna" autocomplete="off"></label>';
+    h+='<label class="fld"><span>Script link</span><input type="text" id="fUrl" placeholder="https://script.google.com/macros/s/\u2026/exec" autocomplete="off"></label>';
+    h+='<label class="fld"><span>Friend key</span><input type="text" id="fKey" autocomplete="off"></label><button class="btn" data-sa="addf" type="button">Add friend\u2019s shelf</button><p class="err" id="fErr" hidden></p>';
+    body.innerHTML=h;
+    keep.forEach(function(id){ var e=$('#'+id,body); if(e&&saved[id]!=null) e.value=saved[id]; });
+  }
+  syncRedraw=draw; draw();
+  function showErr(id,msg){ var e=$('#'+id,body); if(e){ e.textContent=msg; e.hidden=false; } }
+  body.addEventListener('click',async function(e){
+    var b=e.target.closest?e.target.closest('[data-sa]'):null; if(!b) return;
+    var act=b.dataset.sa;
+    if(act==='connect'){
+      var url=$('#sUrl',body).value.trim(), key=$('#sKey',body).value.trim();
+      if(!/^https:\/\/script\.google\.com\//.test(url)){ showErr('sErr','Paste the Web app link. It starts with https://script.google.com/'); return; }
+      if(!key){ showErr('sErr','Enter your key.'); return; }
+      b.textContent='Connecting\u2026';
+      try{
+        var p=await api({url:url,key:key},'ping');
+        if(p.role!=='owner') throw new Error('That is the friend key. Use your owner key here.');
+        SYNC.mine={url:url,key:key,friendKey:p.friendKey||''}; saveSync(); armed=''; draw(); syncAll(true);
+      }catch(err){ b.textContent='Connect'; showErr('sErr',err.message||String(err)); }
+    }else if(act==='sync'){ syncAll(true);
+    }else if(act==='disc'){
+      if(armed!=='disc'){ armed='disc'; draw(); return; }
+      SYNC.mine=null; saveSync(); armed=''; draw();
+    }else if(act==='invite'){
+      var txt='Add my Travelogue shelf: open Travelogue, tap the cloud icon, then Add friend\u2019s shelf.\nLink: '+SYNC.mine.url+'\nKey: '+SYNC.mine.friendKey;
+      var ok=await copyText(txt); toast(ok?'Invite copied':'Copying is blocked here.');
+    }else if(act==='addf'){
+      var fu=$('#fUrl',body).value.trim(), fk=$('#fKey',body).value.trim(), fn=$('#fName',body).value.trim();
+      if(!/^https:\/\/script\.google\.com\//.test(fu)){ showErr('fErr','Paste the Web app link. It starts with https://script.google.com/'); return; }
+      if(!fk){ showErr('fErr','Enter the friend key.'); return; }
+      b.textContent='Connecting\u2026';
+      try{
+        var q=await api({url:fu,key:fk},'ping');
+        if(q.role!=='friend') throw new Error('That is an owner key. Ask your friend for their friend key.');
+        SYNC.friends.push({id:uid(),name:fn,url:fu,key:fk,ignore:[]}); saveSync(); armed=''; draw(); syncAll(true);
+      }catch(err2){ b.textContent='Add friend\u2019s shelf'; showErr('fErr',err2.message||String(err2)); }
+    }else if(act==='rmf'){
+      var id=b.dataset.id;
+      if(armed!==id){ armed=id; draw(); return; }
+      SYNC.friends=SYNC.friends.filter(function(f){return f.id!==id;}); saveSync();
+      var gone=trips.filter(function(x){return x.remote&&x.remote.conn===id;});
+      for(var g=0;g<gone.length;g++){ trips=trips.filter(function(x){return x!==gone[g];}); await DB.del(gone[g].id); }
+      armed=''; draw(); renderShelf();
+    }
+  });
+}
+
 /* ---------- start ---------- */
 (async function(){
   await DB.init();
@@ -1568,7 +1815,18 @@ wizEl.addEventListener('keydown',function(e){
   }
   flagSet2();
   trips=list;
+  try{
+    if(localStorage.getItem('tl_fixplaces')!=='1'){
+      trips.forEach(function(t){
+        if(t.remote||(t.shared&&!t.shared.canEdit)) return;
+        var k=dateKey(t), want=k==='2026-10'?'Oviedo':(k==='2026-09'?'Mallorca':'');
+        if(want&&t.location!==want){ t.location=want; t.u=Date.now(); DB.put(t); }
+      });
+      localStorage.setItem('tl_fixplaces','1');
+    }
+  }catch(e){}
   renderShelf();
+  scheduleSync(1200);
   setTimeout(function(){homeEl.classList.remove('intro');},4800);
   window.__travelogue={trips:function(){return trips;},open:openTrip};
 })();
