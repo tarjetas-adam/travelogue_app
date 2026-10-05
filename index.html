@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Travelogue">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="manifest" href="manifest.webmanifest">
+<link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>Travelogue</title>
@@ -52,8 +52,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .ico{width:6.2cqw;height:6.2cqw;min-width:26px;min-height:26px;display:grid;place-items:center}
 .ico svg{width:100%;height:100%;fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .tag{margin:2.4cqw 0 2.2cqw;font:500 max(8px,1.95cqw)/1.2 var(--sans);letter-spacing:.14em;text-transform:uppercase}
-.rule{height:1px;background:var(--ink);margin:0 0 6cqw}
-.row{display:flex;flex:none;justify-content:space-between;align-items:flex-end;height:calc(var(--slot,0px) + 2.6cqw);padding:1.3cqw 0;scroll-snap-align:start}
+.rule{height:1px;background:var(--ink);margin:0 0 7.2cqw}
+.row{display:flex;flex:none;justify-content:space-between;align-items:flex-end;height:calc(var(--slot,0px) + var(--cap,15px) + 2.6cqw);padding:1.3cqw 0;scroll-snap-align:start}
 #shelf{flex:none;overflow-y:auto;overflow-x:hidden;scroll-snap-type:y mandatory;scrollbar-width:none;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 #shelf::-webkit-scrollbar{display:none}
 .scr{flex:1;min-height:0;display:flex;justify-content:center;align-items:flex-start;padding-top:5cqw;transition:opacity .45s ease}
@@ -198,6 +198,7 @@ input[type=search]::-ms-clear{display:none}
 .chosen .pact{align-items:center}
 .uploadbox{display:grid;place-items:center;width:100%;min-height:30vh;border:1px solid var(--ink);font:500 11px/1 var(--sans);letter-spacing:.12em;text-transform:uppercase;margin-bottom:5cqw}
 @keyframes wup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes wfade{from{opacity:0}to{opacity:1}}
 @keyframes wbar{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 .whint.fix{min-height:calc(2*1.4em)}
 .seq .prog i.cur{transform-origin:left;animation:wbar .6s cubic-bezier(.45,.05,.2,1) both}
@@ -222,7 +223,7 @@ input[type=search]::-ms-clear{display:none}
 .intro .brand{animation:wup .8s ease both;animation-delay:.1s}
 .intro .icons{animation:wup .7s ease both;animation-delay:.65s}
 .intro .tag{animation:wup .7s ease both;animation-delay:1s}
-.intro .rule{transform-origin:left;animation:wbar .9s cubic-bezier(.45,.05,.2,1) both;animation-delay:1.25s}
+.intro .rule{animation:wfade .8s ease both;animation-delay:1.25s}
 .intro .tile{animation:wup .75s ease both;animation-delay:calc(1.95s + var(--i,0)*.1s)}
 .intro .scr{animation:wup .6s ease both;animation-delay:3.5s}
 .pickfade>*:not(.refs){opacity:0;transition:opacity .35s ease}
@@ -274,6 +275,9 @@ section:first-of-type>.day{margin-top:4cqw}
 .emptybox .empty{margin:0 0 5cqw}
 .emptybox .btn{margin-right:14px}
 .emptybox .lnk{vertical-align:middle}
+.tile{text-align:left}
+.cap{display:block;margin-top:3px;font:500 10px/12px var(--sans);color:var(--ink2);white-space:nowrap;overflow:hidden;text-align:left}
+.pbtns{display:flex;flex-direction:column;gap:14px;align-items:flex-start}
 @media (prefers-reduced-motion:reduce){.intro *,.seq *{animation:none!important}}
 @media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
 </style>
@@ -531,7 +535,27 @@ function processImage(file,maxSide,quality){
 }
 
 /* ---------- shelf ---------- */
-function sortedTrips(){return trips.slice().sort(function(a,b){return a.order-b.order;});}
+function tripName(t){return String(t.title||'').trim()||String(t.location||'').trim()||'Untitled';}
+function dateKey(t){var d=String(t.date||''); return /^\d{4}-\d{2}/.test(d)?d.slice(0,7):'';}
+function sortedTrips(){
+  return trips.slice().sort(function(a,b){
+    var ka=dateKey(a), kb=dateKey(b);
+    if(ka!==kb){ if(!ka) return 1; if(!kb) return -1; return ka<kb?1:-1; }
+    return a.order-b.order;
+  });
+}
+function capText(t){
+  var p=String(t.location||'').trim(), m=/^(\d{4})-(\d{2})/.exec(String(t.date||'')), ds=m?(m[2]+'/'+m[1].slice(2)):'';
+  return p+(p&&ds?' ':'')+ds;
+}
+function fitCaptions(){
+  $$('.tile .cap',shelfEl).forEach(function(c){
+    c.style.fontSize='';
+    var avail=c.parentNode.clientWidth, need=c.scrollWidth;
+    if(avail>0&&need>avail) c.style.fontSize=Math.max(7,10*avail/need)+'px';
+  });
+}
+
 var query='';
 function matches(t,s){
   var y=String(t.date||'').slice(0,4);
@@ -545,7 +569,7 @@ function coverHTML(t){
   var ar='--ar:'+t.w+'/'+t.h;
   if(t.cover) return '<div class="cover" style="'+ar+'"><img src="'+t.cover+'" alt="" draggable="false"></div>';
   var c=PAL[hash(t.id)%PAL.length];
-  return '<div class="cover fb" style="'+ar+';--bg:'+c[0]+';--fg:'+c[1]+'"><div class="fbm">Travelogue</div><div class="fbt">'+esc(t.title||'Untitled')+'</div><div class="fbl">'+esc(t.location||'')+'</div></div>';
+  return '<div class="cover fb" style="'+ar+';--bg:'+c[0]+';--fg:'+c[1]+'"><div class="fbm">Travelogue</div><div class="fbt">'+esc(tripName(t))+'</div><div class="fbl">'+esc(t.location||'')+'</div></div>';
 }
 var shelfMetric={k:0,maxH:0,rows:0};
 var ROWS=4;
@@ -563,12 +587,13 @@ function sizeShelf(){
   var padB=parseFloat(getComputedStyle(homeEl).paddingBottom)||0;
   var avail=homeEl.clientHeight-shelfEl.offsetTop-padB-0.075*appW;
   var f=1;
-  if(avail>0&&slotNat>0) f=Math.max(.45,Math.min(1,(avail/nShow-gap)/slotNat));
+  if(avail>0&&slotNat>0) f=Math.max(.45,Math.min(1,(avail/nShow-gap-15)/slotNat));
   shelfEl.style.setProperty('--f',f.toFixed(4));
   shelfEl.style.setProperty('--slot',(slotNat*f)+'px');
   var r=$('.row',shelfEl); if(!r) return;
   var pitch=r.getBoundingClientRect().height; if(!pitch) return;
   shelfEl.style.height=(pitch*nShow)+'px';
+  fitCaptions();
   updateScr();
 }
 function renderShelf(){
@@ -592,9 +617,9 @@ function renderShelf(){
       var b=document.createElement('button');
       b.className='tile'; b.type='button'; b.dataset.id=t.id;
       if(intro) b.style.setProperty('--i',Math.min(tIdx++,11));
-      b.setAttribute('aria-label',t.title+(t.location?', '+t.location:''));
+      b.setAttribute('aria-label',tripName(t)+(t.title&&t.location?', '+t.location:''));
       b.style.width='calc('+(t.w*k).toFixed(3)+'% * var(--f,1))';
-      b.innerHTML=coverHTML(t);
+      b.innerHTML=coverHTML(t)+'<span class="cap">'+(capText(t)?esc(capText(t)):'&nbsp;')+'</span>';
       row.appendChild(b);
     });
     shelfEl.appendChild(row);
@@ -653,7 +678,7 @@ var PEN='<span class="pen" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="
 var editMode=false;
 function tripHeadHTML(t){
   var time=fmtDate(t.date).replace(' ',', ');
-  return '<h1>'+esc(t.title)+'</h1>'+(t.location?'<p class="tmeta">'+esc(t.location)+'</p>':'')+(time?'<p class="tmeta">'+esc(time)+'</p>':'');
+  return '<h1>'+esc(tripName(t))+'</h1>'+(t.location&&String(t.title||'').trim()?'<p class="tmeta">'+esc(t.location)+'</p>':'')+(time?'<p class="tmeta">'+esc(time)+'</p>':'');
 }
 function refreshTripHead(t){var h=$('#thead',tripEl); if(h) h.innerHTML=tripHeadHTML(t);}
 function setEdit(on){
@@ -668,8 +693,7 @@ function entryHTML(m){
 }
 function fillPanels(t){
   var g=groupByDay(t.memories), h='';
-  var ro=!!(t.shared&&!t.shared.canEdit);
-  if(!g.days.length) h+=ro?'<p class="empty">No notes yet.</p>':'<div class="emptybox"><p class="empty">No notes yet.</p><button class="btn pri" data-pn="paste" type="button">Paste your notes</button><button class="lnk" data-pn="write" type="button">Write one note</button></div>';
+  if(!g.days.length) h+='<p class="empty">No memories yet.</p>';
   g.days.forEach(function(d){
     h+='<section data-day="'+d+'"><div class="day"><span>Day '+d+'</span></div>'+g.map[d].map(entryHTML).join('')+'</section>';
   });
@@ -713,6 +737,7 @@ function setTabUI(idx){
   tabNow=idx;
   $$('.tab',tripEl).forEach(function(b){b.classList.toggle('on',+b.dataset.i===idx);});
   $('#addBtn').textContent=idx===0?'+ Add memory':'+ Add photos';
+  var lb=$('#listBtn'); if(lb) lb.hidden=idx!==0;
 }
 function setTab(idx){
   syncDays(tabNow,idx);
@@ -725,7 +750,7 @@ function renderTrip(t){
     '<div class="top"><button class="lnk" id="back" type="button">'+ICON.back+'Library</button>'+(ro?'<div class="tright"><button class="lnk" id="removeBtn" type="button">Remove</button></div>':'<div class="tright"><button class="lnk" id="shareBtn" type="button">Share</button><button class="lnk" id="editToggle" type="button">Edit</button></div>')+'</div>'+
     '<header class="thead" id="thead">'+tripHeadHTML(t)+'</header>'+
     '<div class="pager" id="pager"><div class="panel" id="pd"></div><div class="panel" id="pp"></div></div>'+
-    '<div class="foot" id="foot" hidden><button class="lnk" id="issueBtn" type="button">Issue details</button><button class="lnk" id="addBtn" type="button">+ Add memory</button></div>'+
+    '<div class="foot" id="foot" hidden><button class="lnk" id="issueBtn" type="button">Issue details</button><button class="lnk" id="listBtn" type="button">Paste a list</button><button class="lnk" id="addBtn" type="button">+ Add memory</button></div>'+
     '<input type="file" id="fPhotos" accept="image/*" multiple hidden>';
   pagerEl=$('#pager',tripEl); panelD=$('#pd',tripEl); panelP=$('#pp',tripEl);
   tabNow=0; syncCur=0; syncGesture=false; editMode=false;
@@ -742,6 +767,7 @@ function renderTrip(t){
   if($('#shareBtn')) $('#shareBtn').addEventListener('click',function(){shareSheet(current);});
   if($('#removeBtn')) $('#removeBtn').addEventListener('click',function(){removeSharedSheet(current);});
   $('#issueBtn').addEventListener('click',function(){tripSheet(current);});
+  $('#listBtn').addEventListener('click',function(){notesImportSheet(current);});
   $$('.tab',tripEl).forEach(function(b){b.addEventListener('click',function(){setTab(+b.dataset.i);});});
   $('#addBtn').addEventListener('click',function(){
     if(tabNow===0){ if(current.memories.length) memorySheet(current,null); else notesImportSheet(current); } else $('#fPhotos').click();
@@ -751,8 +777,6 @@ function renderTrip(t){
     if(files.length) addPhotos(files);
   });
   panelD.addEventListener('click',function(e){
-    var pn=e.target.closest?e.target.closest('[data-pn]'):null;
-    if(pn){ if(pn.dataset.pn==='paste') notesImportSheet(current); else memorySheet(current,null); return; }
     if(!editMode) return;
     var b=e.target.closest?e.target.closest('.entry'):null;
     if(b){var m=current.memories.filter(function(x){return x.id===b.dataset.id;})[0]; if(m) memorySheet(current,m);}
@@ -810,7 +834,7 @@ async function openTrip(id,tile){
     {duration:ZOOM,delay:DELAY,easing:'cubic-bezier(.45,.05,.2,1)',fill:'both'});
   setTimeout(function(){
     ready=true; fly.style.cursor='pointer';
-    fly.setAttribute('role','button'); fly.setAttribute('aria-label','Open '+t.title);
+    fly.setAttribute('role','button'); fly.setAttribute('aria-label','Open '+tripName(t));
   },DELAY+ZOOM+30);
   function finish(){
     if(stage===3) return; stage=3; openCancel=null; overlayEl.onclick=null;
@@ -874,16 +898,15 @@ function confirmTap(btn,label,action){
 function autosize(ta){ta.style.height='auto';ta.style.height=Math.max(ta.scrollHeight,Math.round(window.innerHeight*.44))+'px';}
 
 function memorySheet(t,m){
-  var isNew=!m, day0=m?m.day:(panelDay(panelD)||1), pending=[];
+  var isNew=!m, day0=m?m.day:(t.lastDay||panelDay(panelD)||1), pending=[];
   var sh=openSheet(isNew?'New memory':'Edit memory',
     '<label class="fld"><span>Day</span><input type="number" id="fDay" min="1" max="99" inputmode="numeric"></label>'+
-    '<label class="fld"><span>Title<i>optional</i></span><input type="text" id="fTitle" placeholder="A title, if it needs one" autocomplete="off"></label>'+
     '<label class="fld"><span>Memory</span><textarea id="fBody" rows="6" placeholder="Write it down while you still remember it."></textarea></label>'+
     '<p class="err" id="fErr" hidden></p>'+
     '<div class="fld"><span>Photos<i>optional</i></span><button class="lnk" id="fPick" type="button">+ Add photos</button><div class="thumbs" id="thumbs"></div><input type="file" id="fFiles" accept="image/*" multiple hidden></div>'+
     (isNew?'':'<button class="del" id="fDel" type="button">Delete memory</button>'));
-  var el=sh.el, day=$('#fDay',el), title=$('#fTitle',el), body=$('#fBody',el), err=$('#fErr',el);
-  day.value=day0; title.value=m?m.title:''; body.value=m?m.body:'';
+  var el=sh.el, day=$('#fDay',el), body=$('#fBody',el), err=$('#fErr',el);
+  day.value=day0; body.value=m?m.body:'';
   body.addEventListener('input',function(){autosize(body);err.hidden=true;}); setTimeout(function(){autosize(body);if(isNew)body.focus();},60);
   $('#fPick',el).addEventListener('click',function(){$('#fFiles',el).click();});
   $('#fFiles',el).addEventListener('change',async function(e){
@@ -898,9 +921,10 @@ function memorySheet(t,m){
     if(!text.trim()){err.textContent='Write something first.';err.hidden=false;return;}
     var d=clamp(parseInt(day.value,10)||1,1,99);
     if(isNew){
-      var nm={id:uid(),day:d,title:title.value.trim(),body:text,ord:Date.now()};
+      var nm={id:uid(),day:d,title:'',body:text,ord:Date.now()};
       t.memories.push(nm); m=nm;
-    }else{ m.day=d; m.title=title.value.trim(); m.body=text; }
+    }else{ m.day=d; m.body=text; }
+    t.lastDay=d;
     pending.forEach(function(r,i){
       t.photos.push({id:uid(),day:exifDay(r.taken,t.date)||d,caption:'',src:r.src,w:r.w,h:r.h,ord:Date.now()+i+1});
     });
@@ -963,16 +987,16 @@ function parseNotes(text,mode,oneDay){
 }
 function notesImportSheet(t){
   var touched=false;
-  var sh=openSheet('Your notes',
-    '<p class="npreview" style="margin-top:0">Paste the notes you already took. Lines like Day 1 and Day 2 are picked up as the days.</p>'+
+  var sh=openSheet('Your memories',
+    '<p class="npreview" style="margin-top:0">Paste the memories you already wrote. Lines like Day 1 and Day 2 are picked up as the days.</p>'+
     '<label class="fld"><textarea id="nText" style="min-height:34vh"></textarea></label>'+
     '<p class="npreview" id="nPrev"></p>'+
     '<label class="fld"><span>Days</span><select id="nMode"><option value="headings">Use Day headings in the text</option><option value="blank">New day after each blank line</option><option value="one">Everything on one day</option></select></label>'+
     '<label class="fld" id="nDayWrap" hidden><span>Day</span><input type="number" id="nDay" min="1" max="99" inputmode="numeric"></label>'+
-    '<button class="lnk" id="nOne" type="button">Write a single note instead</button>'+
-    '<p class="err" id="nErr" hidden></p>','Add notes');
+    '<button class="lnk" id="nOne" type="button">Write a single memory instead</button>'+
+    '<p class="err" id="nErr" hidden></p>','Add memories');
   var el=sh.el, ta=$('#nText',el), mode=$('#nMode',el), dayIn=$('#nDay',el), wrap=$('#nDayWrap',el), prev=$('#nPrev',el), err=$('#nErr',el);
-  ta.placeholder='Day 1\n1. First note\n2. Second note\n\nDay 2\n3. Third note';
+  ta.placeholder='Day 1\n1. First memory\n2. Second memory\n\nDay 2\n3. Third memory';
   dayIn.value=1;
   function recompute(){
     var text=ta.value, p=parseNotes(text,'one',1);
@@ -981,13 +1005,13 @@ function notesImportSheet(t){
     var r=parseNotes(text,mode.value,clamp(parseInt(dayIn.value,10)||1,1,99));
     err.hidden=true;
     if(!r.entries.length){
-      prev.textContent=text.trim()?'No notes found yet.':'';
+      prev.textContent=text.trim()?'No memories found yet.':'';
       return r;
     }
     var counts={}, order=[];
     r.entries.forEach(function(e){ if(!counts[e.day]){counts[e.day]=0;order.push(e.day);} counts[e.day]++; });
     order.sort(function(a,b){return a-b;});
-    var n=r.entries.length, s='Found '+n+(n===1?' note':' notes')+' on '+(order.length===1?'Day '+order[0]:order.length+' days');
+    var n=r.entries.length, s='Found '+n+(n===1?' memory':' memories')+' on '+(order.length===1?'Day '+order[0]:order.length+' days');
     if(order.length>1&&order.length<=6) s+=': '+order.map(function(d){return 'Day '+d+' ('+counts[d]+')';}).join(', ');
     prev.textContent=s+'. You can change any day afterwards.';
     return r;
@@ -999,11 +1023,12 @@ function notesImportSheet(t){
   setTimeout(function(){ta.focus();},120);
   sh.saveBtn.addEventListener('click',async function(){
     var r=recompute();
-    if(!r.entries.length){ err.textContent='No notes found. Paste your list first.'; err.hidden=false; return; }
+    if(!r.entries.length){ err.textContent='No memories found. Paste your list first.'; err.hidden=false; return; }
     var base=Date.now();
     r.entries.forEach(function(e,i){ t.memories.push({id:uid(),day:clamp(e.day,1,99),title:'',body:e.body,ord:base+i}); });
+    t.lastDay=r.entries[r.entries.length-1].day;
     await save(t); refreshPanels(); goDay(panelD,r.entries[0].day); sh.close();
-    toast(r.entries.length+(r.entries.length===1?' note':' notes')+' added');
+    toast(r.entries.length+(r.entries.length===1?' memory':' memories')+' added');
   });
 }
 
@@ -1039,7 +1064,7 @@ function shareSheet(t){
   var bytes=JSON.stringify(buildSharePayload(t,false,'',sid)).length;
   var size=bytes<1048576?Math.max(1,Math.round(bytes/1024))+' KB':(bytes/1048576).toFixed(1)+' MB';
   var sh=openSheet('Share trip',
-    '<p class="npreview" style="margin-top:0">'+esc(t.title)+'<br>'+t.memories.length+(t.memories.length===1?' note':' notes')+', '+t.photos.length+(t.photos.length===1?' photo':' photos')+', about '+size+'.</p>'+
+    '<p class="npreview" style="margin-top:0">'+esc(tripName(t))+'<br>'+t.memories.length+(t.memories.length===1?' note':' notes')+', '+t.photos.length+(t.photos.length===1?' photo':' photos')+', about '+size+'.</p>'+
     '<label class="fld"><span>Your name<i>optional</i></span><input type="text" id="sName" placeholder="Adam" autocomplete="off"></label>'+
     '<label class="chk"><input type="checkbox" id="sEdit"><span>Let my friend edit their copy</span></label>'+
     '<p class="npreview">Your friend gets their own copy. It is read-only unless you allow editing. Changes made later do not travel between copies, so share the trip again to send an update.</p>'+
@@ -1058,7 +1083,7 @@ function shareSheet(t){
   });
 }
 function removeSharedSheet(t){
-  var sh=openSheet('Remove trip','<p class="npreview" style="margin-top:0">Remove \u201c'+esc(t.title)+'\u201d from your shelf? Your friend can send it again any time.</p>','Remove');
+  var sh=openSheet('Remove trip','<p class="npreview" style="margin-top:0">Remove \u201c'+esc(tripName(t))+'\u201d from your shelf? Your friend can send it again any time.</p>','Remove');
   sh.saveBtn.addEventListener('click',async function(){
     trips=trips.filter(function(x){return x.id!==t.id;}); await DB.del(t.id);
     sh.close(); tripEl.style.display='none'; tripEl.innerHTML=''; current=null;
@@ -1071,7 +1096,7 @@ async function importTripText(text){
   if(!o||o.app!=='travelogue'||!o.trip||typeof o.trip!=='object') return bad;
   var tr=o.trip, sid=strClean(o.shareId,80);
   if(!sid) return bad;
-  var title=strClean(tr.title,200).trim(); if(!title) return {ok:false,msg:'This trip has no title.'};
+  var title=strClean(tr.title,200).trim();
   var mem=(Array.isArray(tr.memories)?tr.memories:[]).slice(0,3000).map(function(m,i){
     m=m||{}; return {id:uid(),day:clamp(parseInt(m.day,10)||1,1,99),title:strClean(m.title,300),body:strClean(m.body,20000),ord:Number(m.ord)||i};
   }).filter(function(m){return m.body.trim();});
@@ -1090,16 +1115,16 @@ async function importTripText(text){
   var minOrd=trips.length?Math.min.apply(null,trips.map(function(x){return x.order;})):1;
   var nt=Object.assign({id:uid(),order:minOrd-1,shared:shared},data);
   trips.push(nt); await save(nt);
-  return {ok:true,msg:'\u201c'+title+'\u201d added'+(shared.from?' from '+shared.from:'')};
+  return {ok:true,msg:'\u201c'+tripName(nt)+'\u201d added'+(shared.from?' from '+shared.from:'')};
 }
 function handleImportResult(r){
   if(!r.ok){ if(WZ) wErr(r.msg); else toast(r.msg); return; }
   if(r.update){
     var ex=r.existing;
-    var sh=openSheet('Update trip','<p class="npreview" style="margin-top:0">You already have \u201c'+esc(ex.title)+'\u201d. Replace your copy with this version? Any changes you made to your copy will be lost.</p>','Update');
+    var sh=openSheet('Update trip','<p class="npreview" style="margin-top:0">You already have \u201c'+esc(tripName(ex))+'\u201d. Replace your copy with this version? Any changes you made to your copy will be lost.</p>','Update');
     sh.saveBtn.addEventListener('click',async function(){
       Object.assign(ex,r.data); ex.shared=r.shared; await save(ex);
-      sh.close(); if(WZ) closeWizard(); renderShelf(); toast('\u201c'+ex.title+'\u201d updated');
+      sh.close(); if(WZ) closeWizard(); renderShelf(); toast('\u201c'+tripName(ex)+'\u201d updated');
     });
     return;
   }
@@ -1133,12 +1158,12 @@ function tripSheet(t){
   var isNew=!t, coverData=t?t.cover:null, ratio=null, touchedW=!!t;
   var presetOpts=PRESETS.map(function(p,i){return '<option value="'+i+'">'+esc(p.n)+(p.w?' ('+p.w+' × '+p.h+' mm)':'')+'</option>';}).join('');
   var sh=openSheet(isNew?'New issue':'Edit issue',
-    '<label class="fld"><span>Title</span><input type="text" id="tTitle" placeholder="GR221 Putzfrauen Insel" autocomplete="off"></label>'+
+    '<label class="fld"><span>Title<i>optional</i></span><input type="text" id="tTitle" placeholder="GR221 Putzfrauen Insel" autocomplete="off"></label>'+
     '<label class="fld"><span>Tagline<i>for the cover</i></span><input type="text" id="tTag" placeholder="Hikes, bus rides, refugios" autocomplete="off"></label>'+
-    '<label class="fld"><span>Location</span><input type="text" id="tLoc" placeholder="Mallorca, Spain" autocomplete="off"></label>'+
+    '<label class="fld"><span>Place<i>up to 12 characters</i></span><input type="text" id="tLoc" maxlength="12" placeholder="Mallorca" autocomplete="off"></label>'+
     '<label class="fld"><span>Month and year</span><input type="month" id="tDate" placeholder="2026-10"></label>'+
     '<p class="err" id="tErr" hidden></p>'+
-    '<div class="fld"><span>Cover</span><div class="pvwrap"><div id="pv"></div><button class="lnk" id="tPick" type="button">Upload cover</button></div><input type="file" id="tFile" accept="image/*" hidden></div>'+
+    '<div class="fld"><span>Cover</span><div class="pvwrap"><div id="pv"></div><div class="pbtns"><button class="lnk" id="tPick" type="button">Upload cover</button>'+(isNew?'':'<button class="lnk" id="tNew" type="button">Make a new cover</button>')+'</div></div><input type="file" id="tFile" accept="image/*" hidden></div>'+
     '<label class="fld"><span>Format</span><select id="tPre">'+presetOpts+'</select></label>'+
     '<div class="two"><label class="fld"><span>Width mm</span><input type="number" id="tW" min="50" max="600" inputmode="numeric"></label>'+
     '<label class="fld"><span>Height mm</span><input type="number" id="tH" min="50" max="600" inputmode="numeric"></label></div>'+
@@ -1162,6 +1187,7 @@ function tripSheet(t){
     var p=PRESETS[+f.pre.value]; if(p&&p.w){f.w.value=p.w;f.h.value=p.h;touchedW=true;preview();}
   });
   $('#tPick',el).addEventListener('click',function(){$('#tFile',el).click();});
+  if($('#tNew',el)) $('#tNew',el).addEventListener('click',function(){ sh.close(); setTimeout(function(){openWizard({trip:t});},360); });
   $('#tFile',el).addEventListener('change',async function(e){
     var file=e.target.files&&e.target.files[0]; e.target.value=''; if(!file) return;
     try{
@@ -1171,7 +1197,6 @@ function tripSheet(t){
   });
   sh.saveBtn.addEventListener('click',async function(){
     var title=f.title.value.trim();
-    if(!title){f.err.textContent='Give the issue a title.';f.err.hidden=false;f.title.focus();return;}
     var w=clamp(parseInt(f.w.value,10)||225,50,600), h=clamp(parseInt(f.h.value,10)||300,50,600);
     if(isNew){
       var minOrd=trips.length?Math.min.apply(null,trips.map(function(x){return x.order;})):1;
@@ -1199,7 +1224,7 @@ document.addEventListener('keydown',function(e){
 });
 
 /* ---------- reference magazines and the new issue window ---------- */
-var refs=[], wizEl=$('#wiz'), WZ=null, WZ_STEPS=8, STEP_ORDER=[0,1,2,3,4,5,6,7];
+var refs=[], wizEl=$('#wiz'), WZ=null, WZ_STEPS=7, STEP_ORDER=[0,1,2,3,4,6,7];
 function gcd(a,b){return b?gcd(b,a%b):a;}
 function refById(id){return refs.filter(function(r){return r.id===id;})[0]||null;}
 function sortedRefs(){return refs.slice().sort(function(a,b){return String(a.name).toLowerCase()<String(b.name).toLowerCase()?-1:1;});}
@@ -1220,19 +1245,22 @@ function refsFlag3Set(){try{localStorage.setItem('tl_refs3','1');}catch(e){}}
 
 function buildPrompt(){
   var r=refById(WZ.refId); if(!r) return '';
-  var g=gcd(r.w,r.h), L=[], photo=!!WZ.photo;
-  L.push('Design a realistic front cover for a magazine issue. Use the first attached image ("'+r.name+'") as the style and layout reference. Keep its editorial feel, masthead treatment, typography and grid, but make a new cover that is clearly its own.');
-  if(photo) L.push('The second attached image is a photo taken on this trip. Use it as the main photograph and the colour theme of the cover. Keep its subject recognisable, crop it to suit the layout, and take the cover colours from it. Do not redraw or replace it.');
+  var g=gcd(r.w,r.h), L=[], place=WZ.location.trim(), title=WZ.title.trim()||place, tag=WZ.tagline.trim(), issue=WZ.date?fmtDate(WZ.date):'';
+  L.push('Design a realistic front cover for a magazine issue. The first attached image ("'+r.name+'") is the style and layout reference. Keep its editorial feel, typography, grid and colour logic, but make a new cover that is clearly its own.');
   L.push('');
-  L.push('Magazine name (the masthead at the top of the cover): "Travelogue". The masthead must always read Travelogue. Set it in the same style as the masthead of the reference: its letterforms, case, weight, size, position and colour treatment. Do not use the reference magazine\'s own name or logo anywhere on the cover.');
-  L.push('Small line with the masthead: "Articles detailing journeys"');
-  L.push('Issue title (the main headline of this cover, not the magazine name): "'+WZ.title.trim()+'". Use this exact wording.');
-  if(WZ.tagline.trim()) L.push('Cover line: '+WZ.tagline.trim());
-  if(WZ.location.trim()) L.push('Place: '+WZ.location.trim());
-  if(WZ.date) L.push('Date: '+fmtDate(WZ.date));
+  L.push('If a second image is attached, it is a theme photo from the trip. Use it as the main photograph and the colour theme of the cover. Keep its subject recognisable and do not redraw it.');
+  L.push('If the reference layers cropped or cut-out parts of an image over or under the text (for example a figure overlapping the masthead or headline), use the same style with the theme photo.');
   L.push('');
-  L.push('Format: portrait, '+r.w+' x '+r.h+' mm, aspect ratio '+(r.w/g)+':'+(r.h/g)+'. Show the flat cover only, front-on and filling the whole image, with no mockup, no hands, no shadow and no background.');
-  L.push((photo?'Use only the text given above.':'Choose photography or illustration, colours and layout that suit the title and place. Use only the text given above.')+' Do not invent extra text or placeholder copy. Keep important text away from the edges, because the cover may be trimmed slightly.');
+  L.push('Put this text in the matching places of the reference, spelled exactly:');
+  L.push('- Magazine name, in the style and place of the reference\'s masthead (it does not have to be at the top): "Travelogue"');
+  L.push('- Small line with the magazine name: "Articles detailing journeys"');
+  if(title) L.push('- Main headline, in the style of the reference\'s main headline: "'+title+'"');
+  if(tag) L.push('- Secondary line: "'+tag+'"');
+  if(place) L.push('- Place: "'+place+'"');
+  if(issue) L.push('- Issue: "'+issue+'"');
+  L.push('');
+  L.push('Do not use the reference magazine\'s own name or logo anywhere. Do not add any other words. Where the reference has other text blocks, keep them as plain graphic shapes without words, and do not invent text.');
+  L.push('Format: portrait, '+r.w+' x '+r.h+' mm, aspect ratio '+(r.w/g)+':'+(r.h/g)+'. Show the flat cover only, front-on, filling the whole image, with no mockup, no hands, no shadow and no background. Keep important text away from the edges, because the cover may be trimmed slightly.');
   return L.join('\n');
 }
 function copyText(txt){
@@ -1269,12 +1297,6 @@ function useCoverFile(file){
     if(!WZ) return; WZ.cover=r.src; WZ.cw=r.w; WZ.ch=r.h; WZ.matchImg=false; renderWizard();
   }).catch(function(){toast('That image could not be read.');});
 }
-function usePhotoFile(file){
-  processImage(file,1600,.88).then(function(r){
-    if(!WZ) return; WZ.photo=r.src; renderWizard();
-  }).catch(function(){toast('That image could not be read.');});
-}
-
 function pickRef(tile){
   if(!WZ||WZ.picking) return;
   var id=tile.dataset.ref, box=$('.wizbox',wizEl), cov=tile.querySelector('.cover');
@@ -1304,10 +1326,13 @@ function pickRef(tile){
     },820);
   },420);
 }
-function openWizard(){
+function openWizard(opts){
   if(busy) return;
   closeSearch();
-  WZ={idx:0,anim:true,title:'',tagline:'',location:'',date:'',dateY:new Date().getFullYear(),dateM:0,refId:null,pickOpen:true,showPrompt:false,photo:null,cover:null,cw:0,ch:0,matchImg:false,sub:null};
+  var tr=opts&&opts.trip;
+  STEP_ORDER=tr?[4,6,7]:[0,1,2,3,4,6,7]; WZ_STEPS=STEP_ORDER.length;
+  WZ={idx:0,anim:true,coverOnly:!!tr,tripId:tr?tr.id:null,title:tr?(tr.title||''):'',tagline:tr?(tr.tagline||''):'',location:tr?(tr.location||''):'',date:tr?(tr.date||''):'',dateY:new Date().getFullYear(),dateM:0,refId:null,pickOpen:true,showPrompt:false,cover:null,cw:0,ch:0,matchImg:false,sub:null};
+  $('.wiztitle',wizEl).textContent=tr?'New cover':'New issue';
   wizEl.hidden=false; renderWizard();
   requestAnimationFrame(function(){requestAnimationFrame(function(){wizEl.classList.add('in');});});
 }
@@ -1334,11 +1359,11 @@ function renderWizard(){
   if(WZ.sub){ renderRefForm(); return; }
   var r=refById(WZ.refId), chosen=!!(r&&!WZ.pickOpen);
   if(s===0){
-    h=wHead('Title','What is this issue called?',true)+'<input type="text" id="wIn" placeholder="GR221 Putzfrauen Insel" autocomplete="off">';
+    h=wHead('Title','The big line on the cover and the name of the trip. You can leave it empty.',true)+'<input type="text" id="wIn" placeholder="GR221 Putzfrauen Insel" autocomplete="off">';
   }else if(s===1){
     h=wHead('Tagline','A short line for the cover, like \u201cHikes, bus rides, refugios\u201d.',true)+'<input type="text" id="wIn" placeholder="Hikes, bus rides, refugios" autocomplete="off">';
   }else if(s===2){
-    h=wHead('Place','Where did it happen?',true)+'<input type="text" id="wIn" placeholder="Mallorca, Spain" autocomplete="off">';
+    h=wHead('Place','Where did it happen? Up to 12 characters, shown under the cover.',true)+'<input type="text" id="wIn" maxlength="12" placeholder="Mallorca" autocomplete="off">';
   }else if(s===3){
     h=wHead('Date','Which month and year?',true);
     h+='<div class="mpick"><div class="yrow"><button data-act="yprev" type="button" aria-label="Previous year">'+ARW_L+'</button><span class="yr">'+WZ.dateY+'</span><button data-act="ynext" type="button" aria-label="Next year">'+ARW_R+'</button></div><div class="mgrid">';
@@ -1356,22 +1381,11 @@ function renderWizard(){
       }).join('')+'<button class="ref add" data-act="addref" type="button"><div class="plus">+</div><span>Add magazine</span></button></div>';
       if(!refs.length) h+='<p class="rinfo">Add the first magazine to continue.</p>';
     }
-  }else if(s===5){
-    h=wHead('Trip photo','A photo from the trip to build the cover around.');
-    if(WZ.photo){
-      h+='<div class="pprev"><img src="'+WZ.photo+'" alt=""></div><div class="pact"><button class="btn" data-act="uploadphoto" type="button">Replace photo</button></div>';
-    }else{
-      h+='<button class="uploadbox" data-act="uploadphoto" type="button">Upload photo</button>';
-    }
-    h+='<input type="file" id="pFile" accept="image/*" hidden>';
   }else if(s===6){
-    h=wHead('Make the cover','Download the images and copy the prompt, then use them in ChatGPT.');
-    h+='<div class="dlrow">';
-    if(r) h+='<div class="dlcol"><div class="cover" style="--ar:'+(r.iw||r.w)+'/'+(r.ih||r.h)+'"><img src="'+r.img+'" alt="" draggable="false"></div><span class="dllab">Magazine</span><button class="btn" data-act="dl" type="button">Download</button></div>';
-    if(WZ.photo) h+='<div class="dlcol"><img class="dlimg" src="'+WZ.photo+'" alt="" draggable="false"><span class="dllab">Your photo</span><button class="btn" data-act="dlphoto" type="button">Download</button></div>';
-    h+='</div><button class="btn" data-act="copy" id="bCopy" type="button">Copy prompt</button>';
+    h=wHead('Make the cover','Download the image and copy the prompt, then use them in ChatGPT.');
+    if(r) h+='<div class="pstep"><div class="cover" style="--ar:'+(r.iw||r.w)+'/'+(r.ih||r.h)+'"><img src="'+r.img+'" alt="" draggable="false"></div><div class="pact"><button class="btn" data-act="dl" type="button">Download image</button><button class="btn" data-act="copy" id="bCopy" type="button">Copy prompt</button></div></div>';
     if(WZ.showPrompt) h+='<textarea class="pbox" id="wPrompt" readonly spellcheck="false"></textarea>';
-    h+='<ol class="how"><li>Open ChatGPT and attach '+(WZ.photo?'the magazine image, then your photo':'the downloaded image')+'.</li><li>Paste the prompt and send it.</li><li>Save the cover it makes, then come back.</li></ol>';
+    h+='<ol class="how"><li>Open ChatGPT and attach the downloaded image.</li><li>Attach a theme photo of your trip.</li><li>Paste the prompt and send it.</li><li>Save the cover it makes, then come back.</li></ol>';
   }else if(s===7){
     h=wHead('Add the cover','Upload the image ChatGPT made.');
     if(WZ.cover){
@@ -1387,9 +1401,10 @@ function renderWizard(){
   }
   h+='<p class="werr" id="wErr" hidden></p>';
   if(s===0) foot='<button class="btn plain" data-act="importtrip" type="button">Import a shared trip</button><button class="btn pri" data-act="next" type="button">Next</button>';
-  else if(s<=3||s===5) foot='<button class="btn plain" data-act="skip" type="button">Skip</button><button class="btn pri" data-act="next" type="button">Next</button>';
+  else if(s<=3) foot='<button class="btn plain" data-act="skip" type="button">Skip</button><button class="btn pri" data-act="next" type="button">Next</button>';
   else if(s===4) foot=(chosen?'<button class="btn" data-act="changeref" type="button">Choose another</button>':'<span></span>')+'<button class="btn pri" data-act="next" type="button">Next</button>';
   else if(s===6) foot='<span></span><button class="btn pri" data-act="next" type="button">I have the cover</button>';
+  else if(WZ.coverOnly) foot='<button class="btn plain" data-act="close" type="button">Cancel</button><button class="btn pri" data-act="create" type="button">Save cover</button>';
   else foot='<button class="btn plain" data-act="nocover" type="button">Skip for now</button><button class="btn pri" data-act="create" type="button">Create issue</button>';
   $('#wBody').innerHTML=h; $('#wFoot').innerHTML=foot;
   $('#wBody').scrollTop=0;
@@ -1416,19 +1431,22 @@ function wizNext(skip){
   if(skip){
     if(s<3) WZ[WZ_KEYS[s]]='';
     else if(s===3){WZ.dateM=0;syncDate();}
-    else if(s===5) WZ.photo=null;
   }else{
-    if(s===0&&!WZ.title.trim()){wErr('Enter a title.');return;}
     if(s===4&&!refById(WZ.refId)){wErr('Choose a magazine, or add one.');return;}
-    if(s===5&&!WZ.photo){wErr('Upload a photo, or skip.');return;}
   }
   if(pos<WZ_STEPS-1){WZ.idx++;WZ.anim=true;renderWizard();}
 }
 async function wizCreate(skipCover){
   if(!WZ) return;
-  if(!WZ.cover&&!skipCover){wErr('Upload the cover, or skip for now.');return;}
+  if(!WZ.cover&&!(skipCover&&!WZ.coverOnly)){wErr(WZ.coverOnly?'Upload the cover image first.':'Upload the cover, or skip for now.');return;}
   var r=refById(WZ.refId), w=r?r.w:225, h=r?r.h:300;
   if(WZ.matchImg&&WZ.cw&&WZ.ch) h=Math.round(w*WZ.ch/WZ.cw);
+  if(WZ.coverOnly){
+    var tr=trips.filter(function(x){return x.id===WZ.tripId;})[0];
+    if(!tr){closeWizard();return;}
+    tr.cover=WZ.cover; tr.w=w; tr.h=h; await save(tr);
+    closeWizard(); renderShelf(); toast('Cover updated'); return;
+  }
   var minOrd=trips.length?Math.min.apply(null,trips.map(function(x){return x.order;})):1;
   var nt={id:uid(),order:minOrd-1,title:WZ.title.trim(),tagline:WZ.tagline.trim(),location:WZ.location.trim(),date:WZ.date||'',cover:WZ.cover||null,w:w,h:h,memories:[],photos:[]};
   trips.push(nt); await save(nt);
@@ -1459,9 +1477,7 @@ wizEl.addEventListener('click',function(e){
   else if(act==='ynext'){WZ.dateY++;syncDate();renderWizard();}
   else if(act==='changeref'){WZ.pickOpen=true;renderWizard();}
   else if(act==='addref'){WZ.sub={id:null,name:'',w:'',h:'',img:null,iw:0,ih:0};renderWizard();}
-  else if(act==='uploadphoto'){var pf=$('#pFile'); if(pf) pf.click();}
   else if(act==='dl') saveDataImage(r&&r.img,(r?r.name:'magazine')+' reference');
-  else if(act==='dlphoto') saveDataImage(WZ.photo,'trip photo');
   else if(act==='copy'){
     copyText(buildPrompt()).then(function(ok){
       if(ok){ var b=$('#bCopy'); if(b){b.textContent='Copied';setTimeout(function(){if(b)b.textContent='Copy prompt';},1800);} toast('Prompt copied'); }
@@ -1498,7 +1514,6 @@ wizEl.addEventListener('change',function(e){
   if(!WZ) return;
   var id=e.target.id, file=e.target.files&&e.target.files[0];
   if(id==='cFile'&&file){ e.target.value=''; useCoverFile(file); }
-  else if(id==='pFile'&&file){ e.target.value=''; usePhotoFile(file); }
   else if(id==='rFile'&&file){
     e.target.value='';
     processImage(file,1400,.9).then(function(r){

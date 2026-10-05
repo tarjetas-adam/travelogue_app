@@ -1,8 +1,8 @@
-const VERSION = 'travelogue-v9';
+const VERSION = 'travelogue-v10';
 const ASSETS = [
   "./",
   "index.html",
-  "manifest.webmanifest",
+  "manifest.json",
   "icons/icon-192.png",
   "icons/icon-512.png",
   "icons/maskable-512.png",

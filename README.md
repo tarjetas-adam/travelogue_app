@@ -5,7 +5,7 @@ A private travel journal where every trip is a magazine issue. Opens on your pho
 ## Put it online with GitHub Pages
 
 1. On github.com, create a new repository named `travelogue` (public).
-2. Upload everything in this folder to it: `index.html`, `manifest.webmanifest`, `sw.js`, `cover.png`, `.nojekyll`, and the `icons` and `fonts` folders.
+2. Upload everything in this folder to it: `index.html`, `manifest.json`, `sw.js`, `cover.png`, `.nojekyll`, and the `icons` and `fonts` folders.
 3. In the repository, open Settings, then Pages. Under Build and deployment, choose Deploy from a branch, pick `main` and the `/ (root)` folder, then Save.
 4. After a minute the app is live at `https://YOUR-USERNAME.github.io/travelogue/`.
 5. In Settings, then General, you can upload `cover.png` as the social preview image.
@@ -15,14 +15,14 @@ A private travel journal where every trip is a magazine issue. Opens on your pho
 - iPhone: open the link in Safari, tap Share, then Add to Home Screen.
 - Android: open the link in Chrome, tap the menu, then Install app.
 
-## Adding notes you already took
+## Adding memories you already wrote
 
-Open a new, empty issue and tap Paste your notes (or Edit, then + Add memory). Paste the whole list. Lines such as Day 1, Day 2: Lluc or Nap 3 are picked up as the days, and each numbered line or each line of text becomes a note.
+Open an issue, tap Edit, then Paste a list. Paste the whole list. Lines such as Day 1, Day 2: Lluc or Nap 3 are picked up as the days, and each numbered line or each line of text becomes a memory.
 
 ## Sharing a trip with a friend
 
 - Open the trip and tap Share. Choose whether your friend may edit their copy, then send the file with any app.
-- Your friend opens Travelogue, taps Import a shared trip under the shelf, and picks the file. If it arrives in WhatsApp or Messages, they save it to Files first.
+- Your friend opens Travelogue, taps + and then Import a shared trip (left of Next), and picks the file. If it arrives in WhatsApp or Messages, they save it to Files first.
 - The friend gets their own copy. Share the trip again to send them an update.
 
 ## If you cannot add it to your phone's home screen
@@ -34,4 +34,4 @@ Open a new, empty issue and tap Paste your notes (or Edit, then + Add memory). P
 ## Good to know
 
 - Everything you add is stored on that phone only. A different phone or browser starts empty.
-- To publish an update, replace `index.html` and `sw.js`. If you edit `sw.js` yourself, raise `VERSION` by one (for example to `travelogue-v9`).
+- To publish an update, replace `index.html` and `sw.js`. If you edit `sw.js` yourself, raise `VERSION` by one (for example to `travelogue-v11`).
